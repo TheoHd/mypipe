@@ -1,5 +1,6 @@
 extern crate clap;
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
+use std::process::{Command, Stdio};
 
 fn main() {
     let matches = App::new("mypipe")
@@ -24,14 +25,32 @@ fn main() {
         )
         .get_matches();
 
-    let input_cmd = match matches.value_of("in"){
+    let input_cmd = match matches.value_of("in") {
         Some(x) => x,
-        None => panic!("No input command given")
+        None => panic!("No input command given"),
     };
-    let output_cmd = match matches.value_of("out"){
+    let output_cmd = match matches.value_of("out") {
         Some(x) => x,
-        None => panic!("No output command given")
+        None => panic!("No output command given"),
     };
 
-    println!("{:?}\n{:?}", input_cmd, output_cmd);
+    let process_one = match Command::new(input_cmd)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        Err(why) => panic!("couldn't spawn {} : {}", input_cmd, why),
+        Ok(process) => process,
+    };
+
+    let process_two = match Command::new(output_cmd)
+        .stdin(process_one.stdout.unwrap())
+        .output()
+    {
+        Err(why) => panic!("couldn't spawn {} : {}", input_cmd, why),
+        Ok(process) => process,
+    };
+
+    println!("{}", String::from_utf8_lossy(&process_two.stdout));
+
 }
